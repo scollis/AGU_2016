@@ -9,7 +9,8 @@ on Argonne LCRC Blues
     :toctree: generated/
     hello_world
 """
-
+from matplotlib import use
+use('agg')
 import processing_code as radar_codes
 import os
 from glob import glob
@@ -49,7 +50,7 @@ def get_file_tree(start_dir, pattern):
 if __name__ == "__main__":
     hello_world()
     top = '/lcrc/group/earthscience/radar/sgpstage/sur/'
-    all_files = get_file_tree(top)
+    all_files = get_file_tree(top, '*.mdv')
     print('found ', len(all_files), ' files')
     print(all_files[0], all_files[len(all_files)/2],
             all_files[-1])
