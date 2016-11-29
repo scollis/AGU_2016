@@ -16,6 +16,21 @@ import os
 from glob import glob
 from datetime import datetime
 import os, platform
+import pyart
+import netCDF4
+from matplotlib import pyplot as plt
+import matplotlib
+import numpy as np
+from scipy import ndimage, signal, integrate
+import time
+import copy
+import netCDF4
+import skfuzzy as fuzz
+import datetime
+import platform
+import fnmatch
+import os
+
 
 
 def hello_world():
@@ -48,7 +63,8 @@ def get_file_tree(start_dir, pattern):
         files.extend(glob(os.path.join(dir, pattern)))
     return files
 
-def process_a_volume(radar_fname, odir_radars,
+def process_a_volume(radar_fname, sounding_dir,
+                     odir_radars,
                      odir_statistics, odir_images):
     """
     Process one volume of radar data
@@ -75,9 +91,46 @@ def process_a_volume(radar_fname, odir_radars,
 
     #read radar file
     radar = pyart.io.read(radar_fname)
+    print(radar.fields.keys())
+    i_end = 975
+    radar.range['data']=radar.range['data'][0:i_end]
+    for key in radar.fields.keys():
+        radar.fields[key]['data']= radar.fields[key]['data'][:, 0:i_end]
+    radar.ngates = i_end
 
     #determine some string metatdata
+    radar_start_date = netCDF4.num2date(radar.time['data'][0],
+                                        radar.time['units'])
+    print(radar_start_date)
+    ymd_string = datetime.datetime.strftime(radar_start_date, '%Y%m%d')
+    hms_string = datetime.datetime.strftime(radar_start_date, '%H%M%S')
+    print(ymd_string, hms_string)
 
+    #Sounding
+    sonde_pattern = datetime.datetime.strftime(\
+         radar_start_date,'sgpinterpolatedsondeC1.c1.%Y%m%d.*.cdf')
+    all_sonde_files = os.listdir(soundings_dir)
+    sonde_name = fnmatch.filter(all_sonde_files, sonde_pattern)[0]
+    print(sonde_pattern,sonde_name)
+    interp_sonde = netCDF4.Dataset(os.path.join( soundings_dir, sonde_name))
+    temperatures = interp_sonde.variables['temp'][:]
+    times = interp_sonde.variables['time'][:]
+    heights = interp_sonde.variables['height'][:]
+    my_profile = pyart.retrieve.fetch_radar_time_profile(interp_sonde, radar)
+    info_dict = {'long_name': 'Sounding temperature at gate',
+                 'standard_name' : 'temperature',
+                 'valid_min' : -100,
+                 'valid_max' : 100,
+                 'units' : 'degrees Celsius'}
+    z_dict, temp_dict = pyart.retrieve.map_profile_to_gates( my_profile['temp'],
+                                             my_profile['height']*1000.0,
+                                             radar)
+    radar.add_field('sounding_temperature', temp_dict, replace_existing = True)
+    radar.add_field('height', z_dict, replace_existing = True)
+
+    #SNR
+    snr = pyart.retrieve.calculate_snr_from_reflectivity(radar)
+    radar.add_field('SNR', snr, replace_existing = True)
 
     #Calculate texture
 
@@ -90,6 +143,9 @@ def process_a_volume(radar_fname, odir_radars,
     #CSU KDP
 
     #Variatonal KDP
+    phidp, kdp = pyart.correct.phase_proc_lp(radar,
+                                             0.0, debug=True,
+                                             fzl=3500.0)
 
     #exract KDP and moments at Disdrometer sites
 
@@ -107,11 +163,28 @@ if __name__ == "__main__":
     hello_world()
     if my_system == 'Darwin':
         top = '/data/sample_sapr_data/sgpstage/sur/'
+        soundings_dir = '/data/sample_sapr_data/sgpstage/interp_sonde/'
+        odir_r = '/data/sample_sapr_data/agu2016/radars/'
+        odir_s = '/data/sample_sapr_data/agu2016/stats/'
+        odir_i = '/data/sample_sapr_data/agu2016/images/'
     elif my_system == 'Linux':
         top = '/lcrc/group/earthscience/radar/sgpstage/sur/'
+        soundings_dir = '/lcrc/group/earthscience/radar/sgpstage/interp_sonde/'
+        odir_r = '/lcrc/group/earthscience/radar/agu2016/radars/'
+        odir_s = '/lcrc/group/earthscience/radar/agu2016/stats/'
+        odir_i = '/lcrc/group/earthscience/radar/agu2016/images/'
+
+
     all_files = get_file_tree(top, '*.mdv')
     print('found ', len(all_files), ' files')
     print(all_files[0],
             all_files[int(len(all_files)/2)],
             all_files[-1])
+    test_file = '20110520/110635.mdv'
+    t_radar = os.path.join(top, test_file)
+    print(t_radar)
+    process_a_volume(t_radar, soundings_dir,
+                     odir_r, odir_s, odir_i)
+
+
 
