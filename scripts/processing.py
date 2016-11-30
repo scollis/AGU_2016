@@ -108,11 +108,11 @@ def process_a_volume(radar_fname, sounding_dir,
 
     #Sounding
     sonde_pattern = datetime.datetime.strftime(\
-         radar_start_date,'sgpinterpolatedsondeC1.c1.%Y%m%d.*.cdf')
-    all_sonde_files = os.listdir(soundings_dir)
+         radar_start_date,'sgpinterpolatedsondeC1.c1.%Y%m%d.*')
+    all_sonde_files = os.listdir(s_dir)
     sonde_name = fnmatch.filter(all_sonde_files, sonde_pattern)[0]
     print(sonde_pattern,sonde_name)
-    interp_sonde = netCDF4.Dataset(os.path.join( soundings_dir, sonde_name))
+    interp_sonde = netCDF4.Dataset(os.path.join(s_dir, sonde_name))
     temperatures = interp_sonde.variables['temp'][:]
     times = interp_sonde.variables['time'][:]
     heights = interp_sonde.variables['height'][:]
@@ -163,13 +163,13 @@ if __name__ == "__main__":
     hello_world()
     if my_system == 'Darwin':
         top = '/data/sample_sapr_data/sgpstage/sur/'
-        soundings_dir = '/data/sample_sapr_data/sgpstage/interp_sonde/'
+        s_dir = '/data/sample_sapr_data/sgpstage/interp_sonde/'
         odir_r = '/data/sample_sapr_data/agu2016/radars/'
         odir_s = '/data/sample_sapr_data/agu2016/stats/'
         odir_i = '/data/sample_sapr_data/agu2016/images/'
     elif my_system == 'Linux':
         top = '/lcrc/group/earthscience/radar/sgpstage/sur/'
-        soundings_dir = '/lcrc/group/earthscience/radar/sgpstage/interp_sonde/'
+        s_dir = '/lcrc/group/earthscience/radar/sgpstage/interp_sonde/'
         odir_r = '/lcrc/group/earthscience/radar/agu2016/radars/'
         odir_s = '/lcrc/group/earthscience/radar/agu2016/stats/'
         odir_i = '/lcrc/group/earthscience/radar/agu2016/images/'
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     test_file = '20110520/110635.mdv'
     t_radar = os.path.join(top, test_file)
     print(t_radar)
-    process_a_volume(t_radar, soundings_dir,
+    process_a_volume(t_radar, s_dir,
                      odir_r, odir_s, odir_i)
 
 
