@@ -110,13 +110,15 @@ def cum_score_fuzzy_logic(radar, mbfs = None,
     for key in mbfs.keys():
         if debug: print('Doing ' + key)
         this_score = np.zeros(\
-                flds[flds.keys()[0]]['data'].shape).flatten() * 0.0
+                flds[list(flds.keys())[0]]['data'].shape).flatten() * 0.0
         for MBF in mbfs[key].keys():
             this_score = fuzz.trapmf(flds[MBF]['data'].flatten(),
                          mbfs[key][MBF][0] )*mbfs[key][MBF][1] + this_score
 
-        this_score = this_score.reshape(flds[flds.keys()[0]]['data'].shape)
-        scores.update({key: ndimage.filters.median_filter(this_score, size = [3,4])})
+        this_score = this_score.reshape(\
+                flds[list(flds.keys())[0]]['data'].shape)
+        scores.update({key: ndimage.filters.median_filter(\
+                this_score, size = [3,4])})
     if hard_const != None:
         # hard_const = [[class, field, (v1, v2)], ...]
         for this_const in hard_const:
