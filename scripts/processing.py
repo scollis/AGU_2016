@@ -63,7 +63,7 @@ def get_file_tree(start_dir, pattern):
         files.extend(glob(os.path.join(dir, pattern)))
     return files
 
-def process_a_volume(radar_fname, sounding_dir,
+def process_a_volume(radar_fname, soundings_dir,
                      odir_radars,
                      odir_statistics, odir_images):
     """
@@ -153,7 +153,8 @@ def process_a_volume(radar_fname, sounding_dir,
 
 
     #save summaries of moments at sites
-    dis_output_location = os.path.join(odir_s,ymd_string)
+    dis_output_location = os.path.join(odir_statistics,
+            ymd_string)
     if not os.path.exists(dis_output_location):
         os.makedirs(dis_output_location)
     dis_string = ''
