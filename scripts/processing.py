@@ -107,51 +107,72 @@ def process_a_volume(radar_fname, sounding_dir,
     print(ymd_string, hms_string)
 
     #Sounding
-    sonde_pattern = datetime.datetime.strftime(\
-         radar_start_date,'sgpinterpolatedsondeC1.c1.%Y%m%d.*')
-    all_sonde_files = os.listdir(s_dir)
-    sonde_name = fnmatch.filter(all_sonde_files, sonde_pattern)[0]
-    print(sonde_pattern,sonde_name)
-    interp_sonde = netCDF4.Dataset(os.path.join(s_dir, sonde_name))
-    temperatures = interp_sonde.variables['temp'][:]
-    times = interp_sonde.variables['time'][:]
-    heights = interp_sonde.variables['height'][:]
-    my_profile = pyart.retrieve.fetch_radar_time_profile(interp_sonde, radar)
-    info_dict = {'long_name': 'Sounding temperature at gate',
-                 'standard_name' : 'temperature',
-                 'valid_min' : -100,
-                 'valid_max' : 100,
-                 'units' : 'degrees Celsius'}
-    z_dict, temp_dict = pyart.retrieve.map_profile_to_gates( my_profile['temp'],
-                                             my_profile['height']*1000.0,
-                                             radar)
-    radar.add_field('sounding_temperature', temp_dict, replace_existing = True)
-    radar.add_field('height', z_dict, replace_existing = True)
-
     #SNR
-    snr = pyart.retrieve.calculate_snr_from_reflectivity(radar)
-    radar.add_field('SNR', snr, replace_existing = True)
+
+    z_dict, temp_dict, snr = radar_codes.snr_and_sounding(radar, soundings_dir)
+    texture =  radar_codes.get_texture(radar)
 
     #Calculate texture
-
-    #read aux files
-
+    radar.add_field('sounding_temperature', temp_dict, replace_existing = True)
+    radar.add_field('height', z_dict, replace_existing = True)
+    radar.add_field('SNR', snr, replace_existing = True)
+    radar.add_field('velocity_texture', texture, replace_existing = True)
     #Fuzzy logic construction of gate id
+    my_fuzz, cats = radar_codes.do_my_fuzz(radar)
+    radar.add_field('gate_id', my_fuzz,
+                      replace_existing = True)
 
-    #LP KDP
-
+    #Var KDP
     #CSU KDP
-
-    #Variatonal KDP
-    phidp, kdp = pyart.correct.phase_proc_lp(radar,
-                                             0.0, debug=True,
-                                             fzl=3500.0)
+    #LP KDP
+    phidp, kdp = pyart.correct.phase_proc_lp(radar, 0.0,
+            debug=True, fzl=3500.0)
+    radar.add_field('corrected_differential_phase',
+            phidp,replace_existing = True)
+    radar.add_field('corrected_specific_diff_phase',
+            kdp,replace_existing = True)
 
     #exract KDP and moments at Disdrometer sites
+    height = radar.gate_altitude
+    lats = radar.gate_latitude
+    lons = radar.gate_longitude
+    lowest_lats = lats['data']\
+            [radar.sweep_start_ray_index['data']\
+            [0]:radar.sweep_end_ray_index['data'][0],:]
+    lowest_lons = lons['data']\
+            [radar.sweep_start_ray_index['data']\
+            [0]:radar.sweep_end_ray_index['data'][0],:]
+    c1_dis_lat = 36.605
+    c1_dis_lon = -97.485
+    cost = np.sqrt((lowest_lons - c1_dis_lon)**2 \
+            + (lowest_lats - c1_dis_lat)**2)
+    index = np.where(cost == cost.min())
+    lon_locn = lowest_lons[index]
+    lat_locn = lowest_lats[index]
+    print(lat_locn, lon_locn)
+
 
     #save summaries of moments at sites
+    dis_output_location = os.path.join(odir_s,ymd_string)
+    if not os.path.exists(dis_output_location):
+        os.makedirs(dis_output_location)
+    dis_string = ''
+    time_of_dis = netCDF4.num2date(radar.time['data'],
+            radar.time['units'])[index[0]][0]
+    tstring = datetime.datetime.strftime(time_of_dis,
+            '%Y%m%d%H%H%S')
+    dis_string = dis_string + tstring + ' '
+    for key in radar.fields.keys():
+        dis_string = dis_string + key + ' '
+        dis_string = dis_string +\
+                str(radar.fields[key]['data'][index][0]) + ' '
 
     #Save other summary data
+    write_dis_filename = os.path.join(dis_output_location,
+                        'csapr_distro_'+ymd_string+hms_string+'.txt')
+    dis_fh = open(write_dis_filename, 'w')
+    dis_fh.write(dis_string)
+    dis_fh.close()
 
     #determine radar file name
 
