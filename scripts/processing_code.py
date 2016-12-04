@@ -18,6 +18,7 @@ import time
 import skfuzzy as fuzz
 import numpy as np
 import copy
+from csu_radartools import csu_kdp
 
 WAVE_VERSION = 'First'
 
@@ -211,6 +212,66 @@ def do_my_fuzz(radar):
                   ['multi_trip', 'height', (10000, 1000000)],
                   ['melting' , 'sounding_temperature', (-10000, -2)]]
 
-    gid_fld, cats = cum_score_fuzzy_logic(radar, mbfs = mbfs, debug = True, hard_const = hard_const)
+    gid_fld, cats = cum_score_fuzzy_logic(radar,
+            mbfs = mbfs, debug = True,
+            hard_const = hard_const)
+
     return fix_rain_above_bb(gid_fld, 3, 1, 5), cats
+
+def extract_unmasked_data(radar, field, bad=-32768):
+    """Simplify getting unmasked radar fields from Py-ART"""
+    return radar.fields[field]['data'].filled(fill_value=bad)
+
+def csu_to_field(field, radar, units='unitless',
+                              long_name='Hydrometeor ID',
+                              standard_name='Hydrometeor ID',
+                              dz_field='ZC'):
+    """
+    Adds a newly created field to the Py-ART
+    radar object. If reflectivity is a masked array,
+    make the new field masked the same as reflectivity.
+    """
+    fill_value = -32768
+    masked_field = np.ma.asanyarray(field)
+    masked_field.mask = masked_field == fill_value
+    if hasattr(radar.fields[dz_field]['data'], 'mask'):
+        setattr(masked_field, 'mask',
+                np.logical_or(masked_field.mask,
+                    radar.fields[dz_field]['data'].mask))
+        fill_value = radar.fields[dz_field]['_FillValue']
+    field_dict = {'data': masked_field,
+                  'units': units,
+                  'long_name': long_name,
+                  'standard_name': standard_name,
+                  '_FillValue': fill_value}
+    return field_dict
+
+def return_csu_kdp(radar):
+    dzN = extract_unmasked_data(radar, 'reflectivity')
+    dpN = extract_unmasked_data(radar, 'differential_phase')
+    # Range needs to be supplied
+    #as a variable, and it needs to be
+    #the same shape as dzN, etc.
+    rng2d, az2d = np.meshgrid(radar.range['data'], radar.azimuth['data'])
+    bt = time.time()
+    kdN, fdN, sdN = csu_kdp.calc_kdp_bringi(
+        dp=dpN, dz=dzN, rng=rng2d/1000.0, thsd=12, gs=250.0, window=5)
+    print(time.time()-bt, 'seconds to run')
+    csu_kdp_field = csu_to_field(kdN,
+            radar, units='deg/km',
+            long_name='Specific Differential Phase',
+            standard_name='Specific Differential Phase',
+            dz_field='reflectivity')
+    csu_filt_dp = csu_to_field(fdN,
+            radar, units='deg',
+            long_name='Filtered Differential Phase',
+            standard_name='Filtered Differential Phase',
+            dz_field='reflectivity')
+    csu_kdp_sd = csu_to_field(sdN, radar,
+            units='deg',
+            long_name='Standard Deviation of Differential Phase',
+            standard_name='Standard Deviation of Differential Phase',
+            dz_field='reflectivity')
+    return  csu_kdp_field, csu_filt_dp, csu_kdp_sd
+
 

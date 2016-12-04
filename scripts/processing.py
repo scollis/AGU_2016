@@ -124,6 +124,15 @@ def process_a_volume(radar_fname, soundings_dir,
 
     #Var KDP
     #CSU KDP
+    csu_kdp_field, csu_filt_dp, csu_kdp_sd = radar_codes.return_csu_kdp(radar)
+    radar.add_field('bringi_differential_phase',
+            csu_filt_dp, replace_existing = True)
+    radar.add_field('bringi_specific_diff_phase',
+            csu_kdp_field, replace_existing = True)
+    radar.add_field('bringi_specific_diff_phase_sd',
+            csu_kdp_sd, replace_existing = True)
+
+
     #LP KDP
     phidp, kdp = pyart.correct.phase_proc_lp(radar, 0.0,
             debug=True, fzl=3500.0)
@@ -175,9 +184,39 @@ def process_a_volume(radar_fname, soundings_dir,
     dis_fh.write(dis_string)
     dis_fh.close()
 
+    #images
+    im_output_location = os.path.join(odir_images, ymd_string)
+    if not os.path.exists(im_output_location):
+        os.makedirs(im_output_location)
+
+    #-KDP compare
+    display = pyart.graph.RadarMapDisplay(radar)
+    fig = plt.figure(figsize = [15,7])
+    plt.subplot(1,2,1)
+    display.plot_ppi_map('bringi_specific_diff_phase',
+                        sweep = 0, resolution = 'l',
+                        mask_outside = False,
+                        cmap = pyart.graph.cm.NWSRef,
+                        vmin = 0, vmax = 6)
+    plt.subplot(1,2,2)
+    display.plot_ppi_map('corrected_specific_diff_phase',
+                        sweep = 0, resolution = 'l',
+                        mask_outside = False,
+                        cmap = pyart.graph.cm.NWSRef,
+                        vmin = 0, vmax = 6)
+
+    plt.savefig(os.path.join(im_output_location,
+                'csapr_kdp_comp_'+ymd_string+hms_string+'.png'))
+
     #determine radar file name
+    r_output_location = os.path.join(odir_radar,ymd_string)
+    if not os.path.exists(r_output_location):
+        os.makedirs(r_output_location)
+    rfilename = os.path.join(r_output_location,
+            'csaprsur_' + ymd_string + '.' + 'hms_string.nc')
 
     #save radar file
+    pyart.io.write_cfradial(rfilename, radar)
 
 
 if __name__ == "__main__":
