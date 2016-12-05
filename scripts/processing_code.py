@@ -13,7 +13,7 @@ import netCDF4
 import os
 import fnmatch
 import datetime
-from scipy import ndimage, signal, integrate
+from scipy import ndimage, signal, integrate, interpolate
 import time
 import skfuzzy as fuzz
 import numpy as np
@@ -273,5 +273,28 @@ def return_csu_kdp(radar):
             standard_name='Standard Deviation of Differential Phase',
             dz_field='reflectivity')
     return  csu_kdp_field, csu_filt_dp, csu_kdp_sd
+
+def retrieve_qvp(radar, hts, flds = None):
+    if flds == None:
+        flds = ['differential_phase',
+            'cross_correlation_ratio',
+            'spectrum_width',
+            'reflectivity', 'differential_reflectivity']
+    desired_angle = 20.0
+    index = abs(radar.fixed_angle['data'] - desired_angle).argmin()
+    ss = radar.sweep_start_ray_index['data'][index]
+    se = radar.sweep_end_ray_index['data'][index]
+    mid = int((ss + se)/2)
+    z = radar.gate_altitude['data'][mid, :]
+    qvp = {}
+    for fld in flds:
+        this_fld = radar.get_field(index, fld)[:, :].mean(axis = 0)
+        intery = interpolate.interp1d(z,
+                this_fld, bounds_error=False, fill_value='extrapolate')
+        ithis = intery(hts)
+        qvp.update({fld:ithis})
+    qvp.update({'time': radar.time})
+    qvp.update({'height': hts})
+    return qvp
 
 
