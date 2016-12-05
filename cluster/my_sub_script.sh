@@ -5,7 +5,7 @@
 #PBS -V
 #PBS -N IPythonMPI0
 
-source activate radar35
+#source activate radar35
 export LD_LIBRARY_PATH=/home/scollis/coin/lib/:$LD_LIBRARY_PATH
 ipcluster start --n=12 --profile=mpi0
 
