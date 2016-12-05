@@ -11,7 +11,7 @@ on Argonne LCRC Blues
 """
 from matplotlib import use
 use('agg')
-import processing_code as radar_codes
+#import processing_code as radar_codes
 import os
 from glob import glob
 from datetime import datetime
@@ -25,7 +25,7 @@ from scipy import ndimage, signal, integrate
 import time
 import copy
 import netCDF4
-import skfuzzy as fuzz
+#import skfuzzy as fuzz
 import datetime
 import platform
 import fnmatch
@@ -325,10 +325,13 @@ def process_a_volume(packed):
     status_fh.close()
     return ymd_string + hms_string
 
+def test_script(packed):
+    import sys
+    return packed['infile'] + sys.version
 
 if __name__ == "__main__":
     my_system = platform.system()
-    hello_world()
+    #hello_world()
     if my_system == 'Darwin':
         top = '/data/sample_sapr_data/sgpstage/sur/'
         s_dir = '/data/sample_sapr_data/sgpstage/interp_sonde/'
@@ -378,8 +381,10 @@ if __name__ == "__main__":
     My_View.execute('matplotlib.use("agg")')
 
     #Map the code and input to all workers
-    result = My_View.map_async(process_a_volume, packing)
+    #result = My_View.map_async(process_a_volume, packing[0:100])
+    result = My_View.map_async(test_script, packing[0:100])
 
     #Reduce the result to get a list of output
     qvps = result.get()
+    print(qvps)
 
