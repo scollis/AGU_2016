@@ -209,7 +209,7 @@ def process_a_volume(radar_fname, soundings_dir,
                 'csapr_kdp_comp_'+ymd_string+hms_string+'.png'))
 
     #determine radar file name
-    r_output_location = os.path.join(odir_radars,ymd_string)
+    r_output_location = os.path.join(odir_radars, ymd_string)
     if not os.path.exists(r_output_location):
         os.makedirs(r_output_location)
     rfilename = os.path.join(r_output_location,
