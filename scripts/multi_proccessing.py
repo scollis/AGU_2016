@@ -23,6 +23,7 @@ import matplotlib
 import numpy as np
 from scipy import ndimage, signal, integrate
 import time
+from time import sleep
 import copy
 import netCDF4
 #import skfuzzy as fuzz
