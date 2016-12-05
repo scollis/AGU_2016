@@ -291,7 +291,7 @@ def process_a_volume(radar_fname, soundings_dir,
     if not os.path.exists(r_output_location):
         os.makedirs(r_output_location)
     rfilename = os.path.join(r_output_location,
-            'csaprsur_' + ymd_string + '.' + 'hms_string.nc')
+            'csaprsur_' + ymd_string + '.' + hms_string+'.nc')
 
     #save radar file
     pyart.io.write_cfradial(rfilename, radar)
