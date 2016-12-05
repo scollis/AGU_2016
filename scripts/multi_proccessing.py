@@ -66,11 +66,15 @@ def get_file_tree(start_dir, pattern):
     return files
 
 def process_a_volume(packed):
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("radar_codes",
-            "/home/scollis/projects/AGU_2016/scripts/processing_code.py")
-    radar_codes = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(foo)
+    import imp
+    radar_codes = imp.load_source('radar_codes',
+            '/home/scollis/projects/AGU_2016/scripts/processing_code.py')
+
+    #import importlib.util
+    #spec = importlib.util.spec_from_file_location("radar_codes",
+    #        "/home/scollis/projects/AGU_2016/scripts/processing_code.py")
+    #radar_codes = importlib.util.module_from_spec(spec)
+    #spec.loader.exec_module(foo)
     #foo.MyClass()
     from datetime import datetime
     import os, platform
@@ -382,8 +386,8 @@ if __name__ == "__main__":
     My_View.execute('matplotlib.use("agg")')
 
     #Map the code and input to all workers
-    #result = My_View.map_async(process_a_volume, packing[0:100])
-    result = My_View.map_async(test_script, packing[0:100])
+    result = My_View.map_async(process_a_volume, packing[0:100])
+    #result = My_View.map_async(test_script, packing[0:100])
 
     #Reduce the result to get a list of output
     qvps = result.get()
