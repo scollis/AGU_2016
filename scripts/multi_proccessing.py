@@ -359,7 +359,7 @@ if __name__ == "__main__":
     all_files.sort()
     all_radars = get_file_tree(odir_r, '*.nc')
     all_radars.sort()
-    print('all_radars made ' , len_all_radars)
+    print('all_radars made ' , len(all_radars))
 
     mdv_pat = '%Y%m%d/%H%M%S.mdv'
     mdv_dates = [ datetime.strptime(this_mdv, mdv_pat) for this_mdv in all_files]
