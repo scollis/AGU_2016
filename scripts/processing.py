@@ -324,7 +324,8 @@ if __name__ == "__main__":
     print(all_files[0],
             all_files[int(len(all_files)/2)],
             all_files[-1])
-    test_file = '20110520/110635.mdv'
+    #test_file = '20110520/110635.mdv'
+    test_file = '20110430/172701.mdv'
     t_radar = os.path.join(top, test_file)
     print(t_radar)
     process_a_volume(t_radar, s_dir,
