@@ -14,7 +14,6 @@ use('agg')
 #import processing_code as radar_codes
 import sys
 from glob import glob
-from datetime import datetime
 import os, platform
 import pyart
 import netCDF4
@@ -362,10 +361,10 @@ if __name__ == "__main__":
     print('all_radars made ' , len(all_radars))
 
     mdv_pat = '%Y%m%d/%H%M%S.mdv'
-    mdv_dates = [ datetime.strptime(this_mdv, mdv_pat) for this_mdv in all_files]
+    mdv_dates = [ datetime.datetime.strptime(this_mdv, mdv_pat) for this_mdv in all_files]
 
     nc_pat = 'csaprsur_%Y%m%d.%H%M%S.nc'
-    nc_dates = [ datetime.strptime(this_nc.split('/')[-1], nc_pat) for this_nc in all_radars]
+    nc_dates = [ datetime.datetime.strptime(this_nc.split('/')[-1], nc_pat) for this_nc in all_radars]
 
     not_done_yet = []
     for i in range(len(all_files)):
