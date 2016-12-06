@@ -240,7 +240,7 @@ def process_a_volume(packed):
     time_of_dis = netCDF4.num2date(radar.time['data'],
             radar.time['units'])[index[0]][0]
     tstring = datetime.datetime.strftime(time_of_dis,
-            '%Y%m%d%H%H%S')
+            '%Y%m%d%H%M%S')
     dis_string = dis_string + tstring + ' '
     for key in radar.fields.keys():
         dis_string = dis_string + key + ' '
