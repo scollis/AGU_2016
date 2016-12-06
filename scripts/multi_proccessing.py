@@ -361,7 +361,7 @@ if __name__ == "__main__":
     print('all_radars made ' , len(all_radars))
 
     mdv_pat = '%Y%m%d/%H%M%S.mdv'
-    mdv_dates = [ datetime.datetime.strptime(this_mdv.split('/')[-2]+ \
+    mdv_dates = [ datetime.datetime.strptime(this_mdv.split('/')[-2]+ '/' + \
         this_mdv.split('/')[-1], mdv_pat) for this_mdv in all_files]
 
     nc_pat = 'csaprsur_%Y%m%d.%H%M%S.nc'
