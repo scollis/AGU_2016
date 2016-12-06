@@ -355,8 +355,33 @@ if __name__ == "__main__":
     print(all_files[0],
             all_files[int(len(all_files)/2)],
             all_files[-1])
+
+    all_files.sort()
+    all_radars = get_file_tree(odir_r, '*.nc')
+    all_radars.sort()
+    print('all_radars made ' , len_all_radars)
+
+    mdv_pat = '%Y%m%d/%H%M%S.mdv'
+    mdv_dates = [ datetime.strptime(this_mdv, mdv_pat) for this_mdv in all_files]
+
+    nc_pat = 'csaprsur_%Y%m%d.%H%M%S.nc'
+    nc_dates = [ datetime.strptime(this_nc.split('/')[-1], nc_pat) for this_nc in all_radars]
+
+    not_done_yet = []
+    for i in range(len(all_files)):
+        if not mdv_dates[i] in nc_dates:
+            not_done_yet.append(all_files[i])
+
+    print('Files not done ', len(not_done_yet))
+
+
     packing = []
-    for fn in all_files:
+    if sys.argv[3] == 'check':
+        to_do = files_not_done
+    else:
+        to_do = all_files
+
+    for fn in to_do:
         this_rec = {'top' : top,
                 's_dir' : s_dir,
                 'odir_r' : odir_r,
@@ -386,6 +411,9 @@ if __name__ == "__main__":
     My_View.execute('matplotlib.use("agg")')
 
     #Map the code and input to all workers
+    if b > len(packing):
+        b = len(packing)-1
+        print('reducing')
     print(packing[a:b])
     result = My_View.map_async(process_a_volume, packing[a:b])
     #result = My_View.map_async(test_script, packing[0:100])
