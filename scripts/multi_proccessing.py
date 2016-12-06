@@ -386,6 +386,7 @@ if __name__ == "__main__":
     My_View.execute('matplotlib.use("agg")')
 
     #Map the code and input to all workers
+    print(packing[a:b])
     result = My_View.map_async(process_a_volume, packing[a:b])
     #result = My_View.map_async(test_script, packing[0:100])
 
