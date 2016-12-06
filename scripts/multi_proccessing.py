@@ -377,7 +377,7 @@ if __name__ == "__main__":
 
     packing = []
     if sys.argv[3] == 'check':
-        to_do = files_not_done
+        to_do = not_done_yet
     else:
         to_do = all_files
 
