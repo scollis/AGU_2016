@@ -12,7 +12,7 @@ on Argonne LCRC Blues
 from matplotlib import use
 use('agg')
 #import processing_code as radar_codes
-import os
+import sys
 from glob import glob
 from datetime import datetime
 import os, platform
@@ -28,9 +28,7 @@ import copy
 import netCDF4
 #import skfuzzy as fuzz
 import datetime
-import platform
 import fnmatch
-import os
 from IPython.parallel import Client
 
 
@@ -335,6 +333,8 @@ def test_script(packed):
     return packed['infile'] + sys.version
 
 if __name__ == "__main__":
+    a = int(sys.argv[1])
+    b = int(sys.argv[2])
     my_system = platform.system()
     #hello_world()
     if my_system == 'Darwin':
@@ -386,7 +386,7 @@ if __name__ == "__main__":
     My_View.execute('matplotlib.use("agg")')
 
     #Map the code and input to all workers
-    result = My_View.map_async(process_a_volume, packing[0:100])
+    result = My_View.map_async(process_a_volume, packing[a:b])
     #result = My_View.map_async(test_script, packing[0:100])
 
     #Reduce the result to get a list of output
