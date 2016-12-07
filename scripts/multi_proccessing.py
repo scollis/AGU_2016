@@ -116,215 +116,220 @@ def process_a_volume(packed):
 
 
     #read radar file
-    radar = pyart.io.read(radar_fname)
-    print(radar.fields.keys())
-    i_end = 975
-    radar.range['data']=radar.range['data'][0:i_end]
-    for key in radar.fields.keys():
-        radar.fields[key]['data']= radar.fields[key]['data'][:, 0:i_end]
-    radar.ngates = i_end
+    try:
+        radar = pyart.io.read(radar_fname)
+        print(radar.fields.keys())
+        i_end = 975
+        radar.range['data']=radar.range['data'][0:i_end]
+        for key in radar.fields.keys():
+            radar.fields[key]['data']= radar.fields[key]['data'][:, 0:i_end]
+        radar.ngates = i_end
 
-    #determine some string metatdata
-    radar_start_date = netCDF4.num2date(radar.time['data'][0],
-                                        radar.time['units'])
-    print(radar_start_date)
-    ymd_string = datetime.datetime.strftime(radar_start_date, '%Y%m%d')
-    hms_string = datetime.datetime.strftime(radar_start_date, '%H%M%S')
-    print(ymd_string, hms_string)
+        #determine some string metatdata
+        radar_start_date = netCDF4.num2date(radar.time['data'][0],
+                                            radar.time['units'])
+        print(radar_start_date)
+        ymd_string = datetime.datetime.strftime(radar_start_date, '%Y%m%d')
+        hms_string = datetime.datetime.strftime(radar_start_date, '%H%M%S')
+        print(ymd_string, hms_string)
 
-    dis_output_location = os.path.join(odir_statistics,
-            ymd_string)
-    if not os.path.exists(dis_output_location):
-        os.makedirs(dis_output_location)
+        dis_output_location = os.path.join(odir_statistics,
+                ymd_string)
+        if not os.path.exists(dis_output_location):
+            os.makedirs(dis_output_location)
 
-    status_fn = os.path.join(dis_output_location, 'status_' +
-            ymd_string+hms_string+'.txt')
+        status_fn = os.path.join(dis_output_location, 'status_' +
+                ymd_string+hms_string+'.txt')
 
-    status_fh = open(status_fn, 'w')
-    status_fh.write('Read file in \n')
-    status_fh.flush()
+        status_fh = open(status_fn, 'w')
+        status_fh.write('Read file in \n')
+        status_fh.flush()
 
-    z_dict, temp_dict, snr = radar_codes.snr_and_sounding(radar, soundings_dir)
-    texture =  radar_codes.get_texture(radar)
+        z_dict, temp_dict, snr = radar_codes.snr_and_sounding(radar, soundings_dir)
+        texture =  radar_codes.get_texture(radar)
 
-    #Calculate texture
-    radar.add_field('sounding_temperature', temp_dict, replace_existing = True)
-    radar.add_field('height', z_dict, replace_existing = True)
-    radar.add_field('SNR', snr, replace_existing = True)
-    radar.add_field('velocity_texture', texture, replace_existing = True)
-    status_fh.write('Texture done \n')
-    status_fh.flush()
+        #Calculate texture
+        radar.add_field('sounding_temperature', temp_dict, replace_existing = True)
+        radar.add_field('height', z_dict, replace_existing = True)
+        radar.add_field('SNR', snr, replace_existing = True)
+        radar.add_field('velocity_texture', texture, replace_existing = True)
+        status_fh.write('Texture done \n')
+        status_fh.flush()
 
-    #Fuzzy logic construction of gate id
-    my_fuzz, cats = radar_codes.do_my_fuzz(radar)
-    radar.add_field('gate_id', my_fuzz,
-                      replace_existing = True)
-    status_fh.write('FL done \n')
-    status_fh.flush()
-
-
-    #Var KDP
-    #- create gatefilter
-    rain_and_snow = pyart.correct.GateFilter(radar)
-    rain_and_snow.exclude_all()
-    rain_and_snow.include_equal('gate_id', 1)
-    rain_and_snow.include_equal('gate_id', 3)
-    rain_and_snow.include_equal('gate_id', 4)
-
-    melt_locations = np.where(radar.fields['gate_id']['data'] == 1)
-    kinda_cold = np.where(radar.fields['sounding_temperature']['data'] < 0)
-    fzl_sounding = radar.gate_altitude['data'][kinda_cold].min()
-    if len(melt_locations[0] > 1):
-        fzl_pid = radar.gate_altitude['data'][melt_locations].mean()
-        fzl = (fzl_pid + fzl_sounding)/2.0
-    else:
-        fzl = fzl_sounding
-
-    if fzl > 5000:
-        fzl = 3500.0
-
-    #- run code
-    m_kdp, phidp_f, phidp_r = pyart.retrieve.kdp_proc.kdp_maesaka(radar,
-                                                                  gatefilter=rain_and_snow)
-   #- Append fields
-    radar.add_field('maesaka_differential_phase', m_kdp, replace_existing = True)
-    radar.add_field('maesaka_forward_specific_diff_phase', phidp_f, replace_existing = True)
-    radar.add_field('maesaka__reverse_specific_diff_phase', phidp_r, replace_existing = True)
-    status_fh.write('mesaka done \n')
-    status_fh.flush()
-
-    #CSU KDP
-    csu_kdp_field, csu_filt_dp, csu_kdp_sd = radar_codes.return_csu_kdp(radar)
-    radar.add_field('bringi_differential_phase',
-            csu_filt_dp, replace_existing = True)
-    radar.add_field('bringi_specific_diff_phase',
-            csu_kdp_field, replace_existing = True)
-    radar.add_field('bringi_specific_diff_phase_sd',
-            csu_kdp_sd, replace_existing = True)
-    status_fh.write('CSU done \n')
-    status_fh.flush()
-
-    #LP KDP
-    phidp, kdp = pyart.correct.phase_proc_lp(radar, 0.0,
-            debug=True, fzl=fzl)
-    radar.add_field('corrected_differential_phase',
-            phidp,replace_existing = True)
-    radar.add_field('corrected_specific_diff_phase',
-            kdp,replace_existing = True)
-    status_fh.write('LP done \n')
-    status_fh.flush()
-
-    #extract KDP and moments at Disdrometer sites
-    height = radar.gate_altitude
-    lats = radar.gate_latitude
-    lons = radar.gate_longitude
-    lowest_lats = lats['data']\
-            [radar.sweep_start_ray_index['data']\
-            [0]:radar.sweep_end_ray_index['data'][0],:]
-    lowest_lons = lons['data']\
-            [radar.sweep_start_ray_index['data']\
-            [0]:radar.sweep_end_ray_index['data'][0],:]
-    c1_dis_lat = 36.605
-    c1_dis_lon = -97.485
-    cost = np.sqrt((lowest_lons - c1_dis_lon)**2 \
-            + (lowest_lats - c1_dis_lat)**2) #A cost function for searching
-    index = np.where(cost == cost.min())
-    lon_locn = lowest_lons[index]
-    lat_locn = lowest_lats[index]
-    print(lat_locn, lon_locn)
+        #Fuzzy logic construction of gate id
+        my_fuzz, cats = radar_codes.do_my_fuzz(radar)
+        radar.add_field('gate_id', my_fuzz,
+                          replace_existing = True)
+        status_fh.write('FL done \n')
+        status_fh.flush()
 
 
-    #save summaries of moments at sites
-    dis_string = ''
-    time_of_dis = netCDF4.num2date(radar.time['data'],
-            radar.time['units'])[index[0]][0]
-    tstring = datetime.datetime.strftime(time_of_dis,
-            '%Y%m%d%H%M%S')
-    dis_string = dis_string + tstring + ' '
-    for key in radar.fields.keys():
-        dis_string = dis_string + key + ' '
-        dis_string = dis_string +\
-                str(radar.fields[key]['data'][index][0]) + ' '
+        #Var KDP
+        #- create gatefilter
+        rain_and_snow = pyart.correct.GateFilter(radar)
+        rain_and_snow.exclude_all()
+        rain_and_snow.include_equal('gate_id', 1)
+        rain_and_snow.include_equal('gate_id', 3)
+        rain_and_snow.include_equal('gate_id', 4)
 
-    #Save other summary data
-    write_dis_filename = os.path.join(dis_output_location,
-                        'csapr_distro_'+ymd_string+hms_string+'.txt')
-    dis_fh = open(write_dis_filename, 'w')
-    dis_fh.write(dis_string)
-    dis_fh.close()
-    status_fh.write('Distro saved \n')
-    status_fh.flush()
+        melt_locations = np.where(radar.fields['gate_id']['data'] == 1)
+        kinda_cold = np.where(radar.fields['sounding_temperature']['data'] < 0)
+        fzl_sounding = radar.gate_altitude['data'][kinda_cold].min()
+        if len(melt_locations[0] > 1):
+            fzl_pid = radar.gate_altitude['data'][melt_locations].mean()
+            fzl = (fzl_pid + fzl_sounding)/2.0
+        else:
+            fzl = fzl_sounding
 
-    #- QVP
-    hts = np.linspace(radar.altitude['data'],15000.0 + radar.altitude['data'],61)
-    flds =['reflectivity',
-         'bringi_specific_diff_phase',
-         'corrected_specific_diff_phase',
-         'maesaka_differential_phase',
-         'cross_correlation_ratio',
-         'velocity_texture']
-    my_qvp = radar_codes.retrieve_qvp(radar, hts, flds = flds)
-    hts_string = 'height(m) '
-    for htss in hts:
-        hts_string = hts_string + str(int(htss)) + ' '
+        if fzl > 5000:
+            fzl = 3500.0
 
-    write_qvp_filename = os.path.join(dis_output_location,
-                                     'csapr_qvp_'+ymd_string+hms_string+'.txt')
+        #- run code
+        m_kdp, phidp_f, phidp_r = pyart.retrieve.kdp_proc.kdp_maesaka(radar,
+                                                                      gatefilter=rain_and_snow)
+       #- Append fields
+        radar.add_field('maesaka_differential_phase', m_kdp, replace_existing = True)
+        radar.add_field('maesaka_forward_specific_diff_phase', phidp_f, replace_existing = True)
+        radar.add_field('maesaka__reverse_specific_diff_phase', phidp_r, replace_existing = True)
+        status_fh.write('mesaka done \n')
+        status_fh.flush()
 
-    dis_fh = open(write_qvp_filename, 'w')
-    dis_fh.write(hts_string + '\n')
-    for key in flds:
-        print(key)
-        this_str = key + ' '
-        for i in range(len(hts)):
-            this_str = this_str + str(my_qvp[key][i]) + ' '
-        this_str = this_str + '\n'
-        dis_fh.write(this_str)
-    dis_fh.close()
-    status_fh.write('qvp saved \n')
-    status_fh.flush()
+        #CSU KDP
+        csu_kdp_field, csu_filt_dp, csu_kdp_sd = radar_codes.return_csu_kdp(radar)
+        radar.add_field('bringi_differential_phase',
+                csu_filt_dp, replace_existing = True)
+        radar.add_field('bringi_specific_diff_phase',
+                csu_kdp_field, replace_existing = True)
+        radar.add_field('bringi_specific_diff_phase_sd',
+                csu_kdp_sd, replace_existing = True)
+        status_fh.write('CSU done \n')
+        status_fh.flush()
 
-    #images
-    im_output_location = os.path.join(odir_images, ymd_string)
-    if not os.path.exists(im_output_location):
-        os.makedirs(im_output_location)
+        #LP KDP
+        phidp, kdp = pyart.correct.phase_proc_lp(radar, 0.0,
+                debug=True, fzl=fzl)
+        radar.add_field('corrected_differential_phase',
+                phidp,replace_existing = True)
+        radar.add_field('corrected_specific_diff_phase',
+                kdp,replace_existing = True)
+        status_fh.write('LP done \n')
+        status_fh.flush()
 
-    #-KDP compare
-    display = pyart.graph.RadarMapDisplay(radar)
-    fig = plt.figure(figsize = [20,6])
-    plt.subplot(1,3,1)
-    display.plot_ppi_map('bringi_specific_diff_phase', sweep = 0, resolution = 'l',
-                        mask_outside = False,
-                        cmap = pyart.graph.cm.NWSRef,
-                        vmin = 0, vmax = 6, title='Bringi/CSU')
-    plt.subplot(1,3,2)
-    display.plot_ppi_map('corrected_specific_diff_phase', sweep = 0, resolution = 'l',
-                        mask_outside = False,
-                        cmap = pyart.graph.cm.NWSRef,
-                        vmin = 0, vmax = 6, title='Giangrande/LP')
+        #extract KDP and moments at Disdrometer sites
+        height = radar.gate_altitude
+        lats = radar.gate_latitude
+        lons = radar.gate_longitude
+        lowest_lats = lats['data']\
+                [radar.sweep_start_ray_index['data']\
+                [0]:radar.sweep_end_ray_index['data'][0],:]
+        lowest_lons = lons['data']\
+                [radar.sweep_start_ray_index['data']\
+                [0]:radar.sweep_end_ray_index['data'][0],:]
+        c1_dis_lat = 36.605
+        c1_dis_lon = -97.485
+        cost = np.sqrt((lowest_lons - c1_dis_lon)**2 \
+                + (lowest_lats - c1_dis_lat)**2) #A cost function for searching
+        index = np.where(cost == cost.min())
+        lon_locn = lowest_lons[index]
+        lat_locn = lowest_lats[index]
+        print(lat_locn, lon_locn)
 
-    plt.subplot(1,3,3)
-    display.plot_ppi_map('maesaka_differential_phase', sweep = 0, resolution = 'l',
-                        mask_outside = False,
-                        cmap = pyart.graph.cm.NWSRef,
-                        vmin = 0, vmax = 6, title='North/Maesaka')
 
-    plt.savefig(os.path.join(im_output_location,
-                'csapr_kdp_comp_'+ymd_string+hms_string+'.png'))
+        #save summaries of moments at sites
+        dis_string = ''
+        time_of_dis = netCDF4.num2date(radar.time['data'],
+                radar.time['units'])[index[0]][0]
+        tstring = datetime.datetime.strftime(time_of_dis,
+                '%Y%m%d%H%M%S')
+        dis_string = dis_string + tstring + ' '
+        for key in radar.fields.keys():
+            dis_string = dis_string + key + ' '
+            dis_string = dis_string +\
+                    str(radar.fields[key]['data'][index][0]) + ' '
 
-    #determine radar file name
-    r_output_location = os.path.join(odir_radars, ymd_string)
-    if not os.path.exists(r_output_location):
-        os.makedirs(r_output_location)
-    rfilename = os.path.join(r_output_location,
-            'csaprsur_' + ymd_string + '.' + hms_string + '.nc')
+        #Save other summary data
+        write_dis_filename = os.path.join(dis_output_location,
+                            'csapr_distro_'+ymd_string+hms_string+'.txt')
+        dis_fh = open(write_dis_filename, 'w')
+        dis_fh.write(dis_string)
+        dis_fh.close()
+        status_fh.write('Distro saved \n')
+        status_fh.flush()
 
-    #save radar file
-    pyart.io.write_cfradial(rfilename, radar)
-    plt.close(fig)
-    status_fh.write('image saved \n')
-    status_fh.flush()
-    status_fh.close()
+        #- QVP
+        hts = np.linspace(radar.altitude['data'],15000.0 + radar.altitude['data'],61)
+        flds =['reflectivity',
+             'bringi_specific_diff_phase',
+             'corrected_specific_diff_phase',
+             'maesaka_differential_phase',
+             'cross_correlation_ratio',
+             'velocity_texture']
+        my_qvp = radar_codes.retrieve_qvp(radar, hts, flds = flds)
+        hts_string = 'height(m) '
+        for htss in hts:
+            hts_string = hts_string + str(int(htss)) + ' '
+
+        write_qvp_filename = os.path.join(dis_output_location,
+                                         'csapr_qvp_'+ymd_string+hms_string+'.txt')
+
+        dis_fh = open(write_qvp_filename, 'w')
+        dis_fh.write(hts_string + '\n')
+        for key in flds:
+            print(key)
+            this_str = key + ' '
+            for i in range(len(hts)):
+                this_str = this_str + str(my_qvp[key][i]) + ' '
+            this_str = this_str + '\n'
+            dis_fh.write(this_str)
+        dis_fh.close()
+        status_fh.write('qvp saved \n')
+        status_fh.flush()
+
+        #images
+        im_output_location = os.path.join(odir_images, ymd_string)
+        if not os.path.exists(im_output_location):
+            os.makedirs(im_output_location)
+
+        #-KDP compare
+        display = pyart.graph.RadarMapDisplay(radar)
+        fig = plt.figure(figsize = [20,6])
+        plt.subplot(1,3,1)
+        display.plot_ppi_map('bringi_specific_diff_phase', sweep = 0, resolution = 'l',
+                            mask_outside = False,
+                            cmap = pyart.graph.cm.NWSRef,
+                            vmin = 0, vmax = 6, title='Bringi/CSU')
+        plt.subplot(1,3,2)
+        display.plot_ppi_map('corrected_specific_diff_phase', sweep = 0, resolution = 'l',
+                            mask_outside = False,
+                            cmap = pyart.graph.cm.NWSRef,
+                            vmin = 0, vmax = 6, title='Giangrande/LP')
+
+        plt.subplot(1,3,3)
+        display.plot_ppi_map('maesaka_differential_phase', sweep = 0, resolution = 'l',
+                            mask_outside = False,
+                            cmap = pyart.graph.cm.NWSRef,
+                            vmin = 0, vmax = 6, title='North/Maesaka')
+
+        plt.savefig(os.path.join(im_output_location,
+                    'csapr_kdp_comp_'+ymd_string+hms_string+'.png'))
+
+        #determine radar file name
+        r_output_location = os.path.join(odir_radars, ymd_string)
+        if not os.path.exists(r_output_location):
+            os.makedirs(r_output_location)
+        rfilename = os.path.join(r_output_location,
+                'csaprsur_' + ymd_string + '.' + hms_string + '.nc')
+
+        #save radar file
+        pyart.io.write_cfradial(rfilename, radar)
+        plt.close(fig)
+        status_fh.write('image saved \n')
+        status_fh.flush()
+        status_fh.close()
+    except:
+        ymd_string = 'ERROR'
+        hms_string = 'ERROR'
+
     return ymd_string + hms_string
 
 def test_script(packed):
