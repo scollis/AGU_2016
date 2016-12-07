@@ -332,8 +332,13 @@ def test_script(packed):
     return packed['infile'] + sys.version
 
 if __name__ == "__main__":
-    a = int(sys.argv[1])
-    b = int(sys.argv[2])
+    try:
+        a = int(sys.argv[1])
+        b = int(sys.argv[2])
+    except:
+        a = 0
+        b = 10000
+
     my_system = platform.system()
     #hello_world()
     if my_system == 'Darwin':
@@ -367,10 +372,26 @@ if __name__ == "__main__":
     nc_pat = 'csaprsur_%Y%m%d.%H%M%S.nc'
     nc_dates = [ datetime.datetime.strptime(this_nc.split('/')[-1], nc_pat) for this_nc in all_radars]
 
+    #not_done_yet = []
+    #for i in range(len(all_files)):
+    #    if not mdv_dates[i] in nc_dates:
+    #        not_done_yet.append(all_files[i])
+    acc_time = 3.0*60.0
+    units = 'seconds since 2011-04-23 00:59:20'
+    nc_dates_seconds = netCDF4.date2num(nc_dates, units)
+    mdv_dates_seconds =  netCDF4.date2num(mdv_dates, units)
     not_done_yet = []
     for i in range(len(all_files)):
-        if not mdv_dates[i] in nc_dates:
+        this_radar_time = mdv_dates_seconds[i]
+        min_time = np.abs(np.array(nc_dates_seconds) - this_radar_time).min()
+        if min_time > acc_time:
             not_done_yet.append(all_files[i])
+
+    print(len(nc_dates))
+    print(len(all_files))
+    print(len(not_done_yet))
+    print(len(not_done_yet)+ len(nc_dates))
+
 
     print('Files not done ', len(not_done_yet))
 
