@@ -74,7 +74,7 @@ def process_a_volume(packed):
     #spec.loader.exec_module(foo)
     #foo.MyClass()
     from datetime import datetime
-    import os, platform
+    import os, platform,sys
     import pyart
     import netCDF4
     from matplotlib import pyplot as plt
@@ -187,7 +187,7 @@ def process_a_volume(packed):
         #- run code
         m_kdp, phidp_f, phidp_r = pyart.retrieve.kdp_proc.kdp_maesaka(radar,
                                                                       gatefilter=rain_and_snow)
-       #- Append fields
+        #- Append fields
         radar.add_field('maesaka_differential_phase', m_kdp, replace_existing = True)
         radar.add_field('maesaka_forward_specific_diff_phase', phidp_f, replace_existing = True)
         radar.add_field('maesaka__reverse_specific_diff_phase', phidp_r, replace_existing = True)
@@ -328,7 +328,7 @@ def process_a_volume(packed):
         status_fh.close()
     except:
         ymd_string = 'ERROR'
-        hms_string = 'ERROR'
+        hms_string = "Unexpected error:" + sys.exc_info()[0]
 
     return ymd_string + hms_string
 
