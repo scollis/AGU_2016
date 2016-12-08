@@ -328,7 +328,7 @@ def process_a_volume(packed):
         status_fh.close()
     except:
         ymd_string = 'ERROR'
-        hms_string = "Unexpected error:" + sys.exc_info()[0]
+        hms_string = "Unexpected error:" + str(sys.exc_info()[0])
 
     return ymd_string + hms_string
 
